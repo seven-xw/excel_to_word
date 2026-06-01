@@ -1,0 +1,48 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas python-docx openpyxl pyinstaller
+
+    - name: Generate spec file
+      run: |
+        pyi-makespec --onefile --noconsole --name 飞行检查报告生成器 飞行检查报告生成器.py
+
+    - name: Modify spec file
+      run: |
+        python -c "
+        with open('飞行检查报告生成器.spec', 'r', encoding='utf-8') as f:
+            content = f.read()
+        old = 'hiddenimports=[],'
+        new = "hiddenimports=['pandas','pandas._libs.tslibs.np_datetime','pandas._libs.tslibs.timedeltas','pandas._libs.tslibs.nattype','pandas._libs.tslibs.timezones','pandas._libs.tslibs.conversion','openpyxl','docx','docx.oxml','docx.oxml.ns','tkinter','tkinter.filedialog','tkinter.messagebox'],"
+        content = content.replace(old, new)
+        with open('飞行检查报告生成器.spec', 'w', encoding='utf-8') as f:
+            f.write(content)
+        print('spec updated')
+        "
+
+    - name: Build EXE
+      run: pyinstaller --clean 飞行检查报告生成器.spec
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 飞行检查报告生成器-Windows
+        path: dist/飞行检查报告生成器.exe
